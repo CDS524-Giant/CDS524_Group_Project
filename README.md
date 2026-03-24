@@ -1,169 +1,233 @@
-# 股票价格预测项目 (Stock Price Prediction)
+# CDS524 股票预测项目 (Stock Price Prediction)
 
 ## 📋 项目简介
 
-本项目是 CDS524 课程的分组项目，目标是使用机器学习算法预测美国航空（American Airlines, AAL）的股票每日收盘价。通过提取历史股票数据的特征，建立线性回归模型，实现短期股票价格的预测。
+本项目是CDS524课程的综合分组项目，旨在构建一个完整的股票预测分析系统。我们收集了505家美国上市公司的历史股票数据，采用**分类**和**回归**两种机器学习方法，分别预测股票的涨跌方向和具体价格水平。该项目不仅实现了大规模数据处理，还提供了算法比较、性能评估和结果可视化等完整功能。
 
 ## 🎯 项目目标
 
-- 利用历史股票数据进行特征工程
-- 建立回归模型预测次日股票收盘价
-- 评估模型的预测性能
-- 分析不同特征对预测的影响
+- **大规模数据处理**: 自动化处理505家公司的股票历史数据
+- **多维度预测**: 同时提供涨跌分类预测和价格回归预测
+- **算法比较**: 在相同数据集上对比不同机器学习算法的性能
+- **时间序列建模**: 采用滚动窗口方法处理金融时间序列特性
+- **完整工作流**: 从数据预处理到模型评估的端到端解决方案
+- **可复现性**: 提供详细文档和代码，便于学术研究和应用
 
-## 📊 数据集
+## 📊 数据集概述
 
-**数据源**: `AAL_2013-03-11_to_2018-02-07_all_data.csv`
+### 数据来源
+- **数据位置**: `Stock_predict_analytics_csv/` 目录
+- **公司数量**: 505家美国上市公司
+- **时间跨度**: 多年历史数据（因公司而异）
+- **总文件数**: 505个CSV文件
 
-- **股票代码**: AAL（美国航空）
-- **数据跨度**: 2013年3月11日 - 2018年2月7日
-- **数据周期**: 日线数据
-- **包含字段**: 日期(date)、开盘价(open)、高价(high)、低价(low)、收盘价(close)、成交量(volume)等
+### 数据字段
+每个股票CSV文件包含完整的金融数据：
 
-## 🛠️ 项目结构
+**基础价格数据**:
+- `date`: 交易日期（YYYY-MM-DD格式）
+- `open`: 开盘价
+- `high`: 最高价
+- `low`: 最低价
+- `close`: 收盘价
+- `volume`: 成交量
+
+**技术指标** (预计算):
+- `RSI_14`: 14日相对强弱指数
+- `MACD`: 移动平均收敛散度
+- `BB_width`: 布林带宽度
+- `volatility_20`: 20日波动率
+- `daily_return`: 日收益率
+
+### 数据规模
+- **总记录数**: 数百万条交易记录
+- **特征维度**: 10+个技术指标
+- **预测目标**:
+  - 分类：次日涨跌标签（1=上涨，0=下跌）
+  - 回归：次日收盘价预测
+
+## 🏗️ 项目架构
 
 ```
-Stock_Predict/
-├── README.md                                    # 项目说明文档
-├── EvaluationMetrics.py                        # 主程序（数据处理、建模、评估）
-└── AAL_2013-03-11_to_2018-02-07_all_data.csv  # 股票历史数据
+CDS524_group_project/
+├── README.md                                    # 项目总说明文档
+├── Stock_predict_analytics_csv/                 # 原始股票数据（505家公司）
+│   ├── Stock A.csv
+│   ├── Stock AAPL.csv
+│   ├── Stock MSFT.csv
+│   └── ... (共505个文件)
+├── StockPrediction_RF_LGBM_Classifier/          # 分类预测模块
+│   ├── README.md
+│   ├── main.py                                 # 分类主程序
+│   ├── data/
+│   │   └── preprocess_data.py                  # 分类数据预处理
+│   └── model/
+│       ├── train_and_tune.py                   # 模型训练调参
+│       ├── rolling_window_train.py             # 滚动窗口逻辑
+│       └── saved_models_batch/                 # 分类模型结果
+├── StockPrediction_LGBM_XGBoost_Regression/    # 回归预测模块
+│   ├── README.md
+│   ├── data/
+│   │   ├── train_all_stocks.py                # 回归主训练脚本
+│   │   ├── data_preprocessing.py              # 回归数据预处理
+│   │   ├── xgboost_model.py                   # XGBoost实现
+│   │   ├── lightgbm_model.py                  # LightGBM实现
+│   │   ├── rolling_window.py                  # 滚动窗口工具
+│   │   ├── analyze_data.py                    # 数据分析工具
+│   │   ├── calculate_accuracy.py              # 评估工具
+│   │   ├── test_models.py                     # 模型测试
+│   │   └── stock_prediction.py                # 单股票预测
+│   └── prediction_results/                    # 回归预测结果
+└── prediction_results/                         # 全局结果目录
 ```
 
-## 📈 主要方法
+## 🛠️ 技术栈
 
-### 1. 数据预处理
-- 读取CSV文件中的股票数据
-- 时间戳标准化（转换为pandas datetime格式）
-- 按日期排序，处理缺失值
-- 构建预测目标：次日收盘价
+### 编程语言
+- **Python 3.7+**: 主要开发语言
 
-### 2. 特征工程
-项目使用以下特征进行模型训练：
-- **滞后特征** (Lagged Features)
-  - `close_lag_1` 到 `close_lag_5`: 过去1-5天的收盘价
-  
-- **技术指标** (Technical Indicators)
-  - `SMA_5`: 5日简单移动平均线
-  - `SMA_10`: 10日简单移动平均线
-  - `RSI_14`: 相对强弱指数（如果可用）
-  - `MACD`: 移动平均线收敛散度（如果可用）
-  - `volatility_20`: 20日波动率（如果可用）
+### 核心依赖库
+- **数据处理**: `pandas`, `numpy`
+- **机器学习**: `scikit-learn`, `xgboost`, `lightgbm`
+- **模型持久化**: `joblib`
+- **进度显示**: `tqdm`
+- **可视化**: `matplotlib`, `seaborn`
 
-### 3. 模型训练
-- **算法**: 线性回归 (Linear Regression)
-- **数据分割**: 80% 训练集，20% 测试集
-- **样本**: 约90,000+条历史数据
+### 机器学习算法
 
-### 4. 模型评估
-采用多个评估指标衡量模型性能：
+#### 分类模块 (StockPrediction_RF_LGBM_Classifier)
+- **随机森林 (RandomForest)**: 集成学习，适合高维特征
+- **LightGBM**: 梯度提升决策树，针对大数据优化
 
-| 指标 | 说明 |
-|------|------|
-| **MAE** | 平均绝对误差 (Mean Absolute Error) - 预测价格的平均偏离金额 |
-| **RMSE** | 均方根误差 (Root Mean Square Error) - 惩罚较大误差 |
-| **MAPE** | 平均绝对百分比误差 (Mean Absolute Percentage Error) - 相对误差百分比 |
-| **R²** | 决定系数 (R-squared) - 模型拟合优度，范围[0,1] |
+#### 回归模块 (StockPrediction_LGBM_XGBoost_Regression)
+- **XGBoost**: 极端梯度提升，强大的回归性能
+- **LightGBM**: 高效梯度提升框架
 
-## 🚀 使用方法
+## 📈 核心方法论
+
+### 时间序列建模策略
+两个模块都采用**滚动窗口 (Rolling Window)** 方法：
+
+1. **训练窗口**: 使用历史数据训练模型
+2. **验证窗口**: 调参和模型选择
+3. **测试窗口**: 评估预测性能
+4. **滚动步长**: 逐日滚动，确保时间顺序
+
+### 分类预测流程
+1. **数据预处理**: 构造涨跌标签，特征选择
+2. **超参数调优**: 网格搜索最优参数
+3. **模型训练**: RandomForest vs LightGBM对比
+4. **性能评估**: 准确率、精确率、召回率、F1分数
+5. **结果保存**: 每个股票的预测结果和模型
+
+### 回归预测流程
+1. **特征工程**: 价格数据和技术指标
+2. **滚动窗口训练**: 多窗口性能平均
+3. **模型比较**: XGBoost vs LightGBM
+4. **误差分析**: RMSE、MAE、R²等指标
+5. **预测输出**: 实际价格 vs 预测价格对比
+
+## 🚀 快速开始
 
 ### 环境要求
-```
-Python 3.7+
-pandas
-numpy
-scikit-learn
-matplotlib
-```
+- Python 3.7 或更高版本
+- 推荐内存: 8GB+ RAM
+- 磁盘空间: 2GB+ (数据和模型)
 
 ### 安装依赖
 ```bash
-pip install pandas numpy scikit-learn matplotlib
+# 创建虚拟环境（推荐）
+conda create -n stock_prediction python=3.8
+conda activate stock_prediction
+
+# 安装核心依赖
+pip install pandas numpy scikit-learn xgboost lightgbm joblib tqdm matplotlib seaborn
 ```
 
-### 运行程序
+### 运行完整预测流程
+
+#### 1. 分类预测（涨跌方向）
 ```bash
-python EvaluationMetrics.py
+cd StockPrediction_RF_LGBM_Classifier
+python main.py
 ```
 
-### 程序输出
-程序会依次输出：
-1. ✅ 发现的CSV文件列表
-2. ✅ 数据读取状态及数据形状
-3. ✅ 数据列名
-4. ✅ 特征工程完成情况
-5. 📊 训练集评估指标 (MAE, RMSE, MAPE, R²)
-6. 📊 测试集评估指标
-7. 📈 性能对比图表
-
-## 📝 关键代码流程
-
-```python
-# 1. 自动扫描并加载CSV文件
-df = pd.read_csv(selected_file)
-
-# 2. 数据预处理
-df['date'] = pd.to_datetime(df['date'], errors='coerce')
-df['next_day_close'] = df['close'].shift(-1)
-
-# 3. 特征工程
-create_time_features(df, window=5)
-
-# 4. 训练/测试分割
-train_data, test_data = train_test_split(df, test_size=0.2)
-
-# 5. 模型训练
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-# 6. 预测与评估
-y_pred = model.predict(X_test)
-calculate_metrics(y_test, y_pred)
+#### 2. 回归预测（具体价格）
+```bash
+python StockPrediction_LGBM_XGBoost_Regression/data/train_all_stocks.py
 ```
 
-## 💡 项目特点
+## 📊 输出结果
 
-✨ **优势**:
-- 完整的机器学习流程（数据 → 特征 → 模型 → 评估）
-- 自动化文件扫描，易于处理多个数据源
-- 多维度评估指标，全面反映模型性能
-- 中英文双语注释，易于理解
+### 分类模块输出
+- **模型文件**: `saved_models_batch/{股票名称}/` 目录下的.pkl文件
+- **性能报告**: 控制台输出的准确率、精确率等指标
+- **预测结果**: 每个股票的涨跌预测标签
 
-⚠️ **局限性**:
-- 线性回归模型相对简单，可尝试更复杂的模型（如xgboost、LSTM等）
-- 仅使用历史价格数据，未考虑外部因素（新闻、宏观经济指标等）
-- 假设历史规律可预测未来，存在市场变化风险
+### 回归模块输出
+- **预测CSV**: `prediction_results/prediction_results_{股票名称}.csv`
+- **性能指标**: RMSE、MAE、R²分数
+- **算法对比**: XGBoost vs LightGBM性能比较
 
-## 🔄 后续改进方向
+### 示例输出文件结构
+```
+prediction_results_Stock_AAPL.csv
+├── date: 预测日期
+├── actual: 实际收盘价
+├── xgboost_pred: XGBoost预测价
+└── lightgbm_pred: LightGBM预测价
+```
 
-1. **模型优化**
-   - 尝试非线性回归（Random Forest, XGBoost, SVM等）
-   - 实现深度学习模型（LSTM, GRU等）
+## 🔬 实验设计
 
-2. **特征增强**
-   - 加入更多技术指标（布林带、KDJ等）
-   - 考虑市场情绪指标
-   - 添加外部数据（VIX恐慌指数、经济数据等）
+### 数据分割策略
+- **时间序列保护**: 严格按时间顺序分割
+- **无未来数据泄露**: 训练数据始终在测试数据之前
+- **滚动验证**: 多轮交叉验证确保稳健性
 
-3. **模型评估**
-   - 时间序列交叉验证（Time Series CV）
-   - 回测分析（Backtesting）
-   - 风险权衡分析
+### 评估指标
 
-4. **实用化**
-   - 实时价格预测API
-   - 可视化仪表板
-   - 自动交易信号生成
+#### 分类任务
+- **准确率 (Accuracy)**: 整体预测正确率
+- **精确率 (Precision)**: 正类预测准确性
+- **召回率 (Recall)**: 正类识别完整性
+- **F1分数**: 精确率和召回率的调和平均
 
-## 👥 项目成员
+#### 回归任务
+- **RMSE**: 均方根误差，惩罚大误差
+- **MAE**: 平均绝对误差，平均预测误差
+- **R²**: 决定系数，模型解释方差比例
 
-CDS524 Group Project Team
+### 基准比较
+- **算法对比**: RandomForest vs LightGBM (分类)
+- **算法对比**: XGBoost vs LightGBM (回归)
+- **股票表现**: 不同股票上的模型性能差异
 
-## 📄 许可证
+## 💡 项目亮点
 
-内部使用，不对外公开
+### ✨ 技术优势
+- **大规模处理**: 自动化处理505家公司数据
+- **双重验证**: 分类+回归互补验证
+- **时间序列友好**: 专业的滚动窗口实现
+- **算法全面**: 主流ML算法的完整比较
+- **代码质量**: 模块化设计，易于维护和扩展
 
----
+### 📈 研究价值
+- **金融AI应用**: 机器学习在量化金融中的实践
+- **算法评估**: 在真实金融数据上的性能对比
+- **特征重要性**: 技术指标的有效性分析
+- **可扩展性**: 为更大规模金融预测提供框架
 
-**最后更新**: 2024年
+## 🔧 故障排除
 
-如有问题或建议，欢迎提出 Issue 或 Pull Request！
+### 常见问题
+1. **内存不足**: 处理大数据时考虑分批处理
+2. **运行时间长**: 完整训练可能需要数小时
+3. **路径错误**: 确保从项目根目录运行脚本
+4. **依赖冲突**: 使用虚拟环境隔离依赖
+
+### 性能优化建议
+- **数据采样**: 对超大数据集进行采样测试
+- **并行处理**: 考虑多进程处理多个股票
+- **特征选择**: 减少不重要特征以提升速度
+- **模型简化**: 调整超参数以平衡精度和速度

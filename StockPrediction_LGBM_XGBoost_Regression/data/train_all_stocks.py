@@ -158,7 +158,7 @@ def main():
     Main function to train all stocks
     """
     # Get training data directory
-    training_dir = '../../Stock_predict_analytics_csv'
+    training_dir = './Stock_predict_analytics_csv'
     
     # Check if training directory exists
     if not os.path.exists(training_dir):
